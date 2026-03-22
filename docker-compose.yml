@@ -1,0 +1,313 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # Service Registry (Eureka)
+  # ============================================
+  eureka-server:
+    build: ./service-registry
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - EUREKA_INSTANCE_HOSTNAME=eureka-server
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+    networks:
+      - rzd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ============================================
+  # API Gateway
+  # ============================================
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - rzd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ============================================
+  # Базы данных
+  # ============================================
+  postgres-user:
+    image: postgres:15
+    container_name: postgres-user
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+      - ./init-scripts/user-db:/docker-entrypoint-initdb.d
+    networks:
+      - rzd-network
+
+  postgres-order:
+    image: postgres:15
+    container_name: postgres-order
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-order-data:/var/lib/postgresql/data
+      - ./init-scripts/order-db:/docker-entrypoint-initdb.d
+    networks:
+      - rzd-network
+
+  postgres-inventory:
+    image: postgres:15
+    container_name: postgres-inventory
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-inventory-data:/var/lib/postgresql/data
+      - ./init-scripts/inventory-db:/docker-entrypoint-initdb.d
+    networks:
+      - rzd-network
+
+  postgres-pricing:
+    image: postgres:15
+    container_name: postgres-pricing
+    environment:
+      POSTGRES_DB: pricing_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-pricing-data:/var/lib/postgresql/data
+      - ./init-scripts/pricing-db:/docker-entrypoint-initdb.d
+    networks:
+      - rzd-network
+
+  postgres-payment:
+    image: postgres:15
+    container_name: postgres-payment
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+      - ./init-scripts/payment-db:/docker-entrypoint-initdb.d
+    networks:
+      - rzd-network
+
+  postgres-document:
+    image: postgres:15
+    container_name: postgres-document
+    environment:
+      POSTGRES_DB: document_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres-document-data:/var/lib/postgresql/data
+      - ./init-scripts/document-db:/docker-entrypoint-initdb.d
+    networks:
+      - rzd-network
+
+  # ============================================
+  # Redis (для кэширования и резервирования)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redispass}
+    volumes:
+      - redis-data:/data
+    networks:
+      - rzd-network
+
+  # ============================================
+  # Микросервисы
+  # ============================================
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-user:5432/user_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      postgres-user:
+        condition: service_started
+      redis:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - rzd-network
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "8082:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-order:5432/order_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      postgres-order:
+        condition: service_started
+      redis:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - rzd-network
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: inventory-service
+    ports:
+      - "8083:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-inventory:5432/inventory_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      postgres-inventory:
+        condition: service_started
+      redis:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - rzd-network
+
+  pricing-service:
+    build: ./pricing-service
+    container_name: pricing-service
+    ports:
+      - "8084:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-pricing:5432/pricing_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      postgres-pricing:
+        condition: service_started
+      redis:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - rzd-network
+
+  payment-service:
+    build: ./payment-service
+    container_name: payment-service
+    ports:
+      - "8085:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-payment:5432/payment_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      postgres-payment:
+        condition: service_started
+      redis:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - rzd-network
+
+  document-service:
+    build: ./document-service
+    container_name: document-service
+    ports:
+      - "8086:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-document:5432/document_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./document-service/src/main/resources/templates:/app/templates
+      - ./document-service/src/main/resources/fonts:/app/fonts
+      - ./document-service/src/main/resources/images:/app/images
+    depends_on:
+      postgres-document:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - rzd-network
+
+# ============================================
+# Volumes для персистентности данных
+# ============================================
+volumes:
+  postgres-user-data:
+  postgres-order-data:
+  postgres-inventory-data:
+  postgres-pricing-data:
+  postgres-payment-data:
+  postgres-document-data:
+  redis-data:
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  rzd-network:
+    driver: bridge

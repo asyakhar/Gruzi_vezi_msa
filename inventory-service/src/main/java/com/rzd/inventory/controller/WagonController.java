@@ -1,0 +1,51 @@
+package com.rzd.inventory.controller;
+
+import com.rzd.inventory.model.dto.request.WagonSearchRequest;
+import com.rzd.inventory.model.dto.response.WagonAvailabilityResponse;
+import com.rzd.inventory.service.WagonSearchService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/dispatcher/wagons")
+@RequiredArgsConstructor
+public class WagonController {
+
+    private final WagonSearchService wagonSearchService;
+
+    @PostMapping("/search")
+    public ResponseEntity<List<WagonAvailabilityResponse>> searchWagons(
+            @Valid @RequestBody WagonSearchRequest request) {
+
+        List<WagonAvailabilityResponse> wagons = wagonSearchService.findAvailableWagons(request);
+        return ResponseEntity.ok(wagons);
+    }
+
+
+    @PostMapping("/{wagonId}/reserve")
+    public ResponseEntity<String> reserveWagon(
+            @PathVariable UUID wagonId,
+            @RequestParam UUID orderId,
+            @RequestParam(defaultValue = "30") int minutes) {
+
+        boolean reserved = wagonSearchService.reserveWagon(wagonId, orderId, minutes);
+        if (reserved) {
+            return ResponseEntity.ok("Вагон успешно зарезервирован на " + minutes + " минут");
+        } else {
+            return ResponseEntity.badRequest().body("Вагон уже зарезервирован");
+        }
+    }
+
+
+    @PostMapping("/{wagonId}/release")
+    public ResponseEntity<String> releaseWagon(@PathVariable UUID wagonId) {
+        wagonSearchService.releaseWagon(wagonId);
+        return ResponseEntity.ok("Вагон освобожден");
+    }
+
+}

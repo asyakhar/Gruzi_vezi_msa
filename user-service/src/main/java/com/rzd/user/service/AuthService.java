@@ -1,0 +1,94 @@
+package com.rzd.user.service;
+
+import com.rzd.user.model.dto.request.LoginRequest;
+import com.rzd.user.model.dto.request.RefreshTokenRequest;
+import com.rzd.user.model.dto.request.RegisterRequest;
+import com.rzd.user.model.dto.response.AuthResponse;
+import com.rzd.user.model.entity.User;
+import com.rzd.user.model.enums.Role;
+import com.rzd.user.repository.UserRepository;
+import com.rzd.common.security.JwtService;
+import com.rzd.dispatcher.security.RefreshTokenService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
+    private final AuthenticationManager authenticationManager;
+
+    public AuthResponse register(RegisterRequest request) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Пользователь с таким email уже зарегистрирован!");
+        }
+
+        String innStr = String.valueOf(request.getInn());
+        if (innStr.length() != 10 && innStr.length() != 12) {
+            throw new RuntimeException("ИНН должен содержать 10 или 12 цифр!");
+        }
+
+        var user = new User();
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setCompanyName(request.getCompanyName());
+
+        user.setInn(request.getInn());
+        user.setRole(Role.USER);
+
+        userRepository.save(user);
+
+        var jwtToken = jwtService.generateAccessToken(user.getEmail());
+        var refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
+
+        return AuthResponse.builder()
+                .accessToken(jwtToken)
+                .refreshToken(refreshToken)
+                .build();
+    }
+
+    public AuthResponse login(LoginRequest request) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
+
+        var user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Пользователь не найден в БД"));
+
+        var jwtToken = jwtService.generateAccessToken(user.getEmail());
+        var refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
+
+        return AuthResponse.builder()
+                .accessToken(jwtToken)
+                .refreshToken(refreshToken)
+                .build();
+    }
+
+    public AuthResponse refreshToken(RefreshTokenRequest request) {
+        String requestRefreshToken = request.getRefreshToken();
+
+        String userEmail = refreshTokenService.getEmailByRefreshToken(requestRefreshToken);
+
+        if (userEmail == null) {
+            throw new RuntimeException("Refresh token is invalid or expired");
+        }
+
+        var accessToken = jwtService.generateAccessToken(userEmail);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(requestRefreshToken)
+                .build();
+    }
+
+    public void logout(String refreshToken) {
+        refreshTokenService.deleteRefreshToken(refreshToken);
+    }
+}
