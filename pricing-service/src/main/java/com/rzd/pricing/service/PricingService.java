@@ -1,5 +1,9 @@
 package com.rzd.pricing.service;
 
+import com.rzd.common.dto.OrderDTO;
+import com.rzd.common.dto.WagonDTO;
+import com.rzd.pricing.client.OrderServiceClient;
+import com.rzd.pricing.client.WagonServiceClient;
 import com.rzd.pricing.model.dto.request.PriceCalculationRequest;
 import com.rzd.pricing.model.dto.response.PriceResponse;
 import com.rzd.pricing.model.entity.StationDistance;
@@ -22,11 +26,13 @@ import java.util.UUID;
 @Slf4j
 public class PricingService {
 
-    private final OrderRepository orderRepository;
-    private final WagonRepository wagonRepository;
     private final WagonTariffRepository wagonTariffRepository;
     private final StationDistanceRepository distanceRepository;
     private final AdditionalServicesService additionalServicesService;
+
+
+    private final OrderServiceClient orderServiceClient;
+    private final WagonServiceClient wagonServiceClient;
 
     private static final BigDecimal CO2_FACTOR = new BigDecimal("0.02");
 
@@ -35,12 +41,8 @@ public class PricingService {
         log.info("Расчет полной стоимости для заказа: {}, вагон: {}", orderId, wagonId);
 
 
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Заказ не найден с ID: " + orderId));
-
-
-        Wagon wagon = wagonRepository.findById(wagonId)
-                .orElseThrow(() -> new RuntimeException("Вагон не найден с ID: " + wagonId));
+        OrderDTO order = orderServiceClient.getOrderDTO(orderId);
+        WagonDTO wagon = wagonServiceClient.getWagonDTO(wagonId);
 
 
         int distance = getDistanceBetweenStations(
@@ -53,15 +55,15 @@ public class PricingService {
         final String cargoTypeName;
         final Integer weightKg;
         if (order.getCargo() != null) {
-            cargoTypeName = order.getCargo().getCargoType().name();
+            cargoTypeName = order.getCargo().getCargoType();
             weightKg = order.getCargo().getWeightKg();
         } else {
             cargoTypeName = "общий";
             weightKg = 0;
         }
 
+        final String wagonTypeName = wagon.getWagonType();
 
-        final String wagonTypeName = wagon.getWagonType().name();
 
         WagonTariff tariff = wagonTariffRepository.findByWagonTypeAndCargoType(
                 wagonTypeName,
@@ -117,7 +119,7 @@ public class PricingService {
         BigDecimal cargoValue = additionalServicesService.estimateCargoValue(cargoTypeName, weightKg);
 
 
-        PriceResponse response = PriceResponse.builder()
+        return PriceResponse.builder()
                 .basePrice(basePrice)
                 .additionalServicesPrice(servicesPrice)
                 .totalPrice(basePrice.add(servicesPrice))
@@ -132,9 +134,6 @@ public class PricingService {
                         .riskLevel(determineRiskLevel(cargoTypeName, weightKg))
                         .build())
                 .build();
-
-        log.info("Расчет завершен. Итоговая цена: {} руб", response.getTotalPrice());
-        return response;
     }
 
     @Transactional(readOnly = true)
@@ -165,7 +164,6 @@ public class PricingService {
             basePrice = tariff.getMinPrice();
         }
 
-
         List<PriceResponse.AdditionalServiceDto> allServices =
                 additionalServicesService.getServicesWithSelection(
                         request.getCargoType(),
@@ -177,7 +175,6 @@ public class PricingService {
                         request.getSelectedServices()
                 );
 
-
         BigDecimal servicesPrice = additionalServicesService.calculateServicesPrice(
                 request.getSelectedServices(),
                 request.getCargoType(),
@@ -188,9 +185,7 @@ public class PricingService {
                 request.getDestinationStation()
         );
 
-        double carbonFootprint = calculateCarbonFootprint(
-                request.getWeightKg(), distance);
-
+        double carbonFootprint = calculateCarbonFootprint(request.getWeightKg(), distance);
         BigDecimal cargoValue = additionalServicesService.estimateCargoValue(
                 request.getCargoType(), request.getWeightKg());
 
@@ -211,13 +206,18 @@ public class PricingService {
                 .build();
     }
 
+    /**
+     * Расчет ориентировочной цены для заказа
+     * @param orderId ID заказа
+     * @param wagonType тип вагона
+     * @return ориентировочная стоимость
+     */
     @Transactional(readOnly = true)
     public PriceResponse calculateEstimatedPrice(UUID orderId, String wagonType) {
         log.info("Расчет ориентировочной цены для заказа: {}, тип вагона: {}", orderId, wagonType);
 
 
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Заказ не найден с ID: " + orderId));
+        OrderDTO order = orderServiceClient.getOrderDTO(orderId);
 
 
         int distance = getDistanceBetweenStations(
@@ -230,7 +230,7 @@ public class PricingService {
         final String cargoTypeName;
         final Integer weightKg;
         if (order.getCargo() != null) {
-            cargoTypeName = order.getCargo().getCargoType().name();
+            cargoTypeName = order.getCargo().getCargoType();
             weightKg = order.getCargo().getWeightKg();
         } else {
             cargoTypeName = "общий";
@@ -245,7 +245,6 @@ public class PricingService {
                     cargoTypeName
             ).orElseThrow(() -> new RuntimeException("Тариф не найден"));
         } catch (Exception e) {
-
             log.warn("Тариф не найден для вагона {} и груза {}, используем значения по умолчанию",
                     wagonType, cargoTypeName);
             tariff = new WagonTariff();
@@ -264,7 +263,6 @@ public class PricingService {
                 .multiply(tariff.getCoefficient())
                 .setScale(2, RoundingMode.HALF_UP);
 
-
         if (tariff.getMinPrice() != null && estimatedPrice.compareTo(tariff.getMinPrice()) < 0) {
             estimatedPrice = tariff.getMinPrice();
         }
@@ -276,7 +274,6 @@ public class PricingService {
         BigDecimal cargoValue = additionalServicesService.estimateCargoValue(cargoTypeName, weightKg);
 
         log.info("Ориентировочная цена: {} руб", estimatedPrice);
-
 
         return PriceResponse.builder()
                 .basePrice(estimatedPrice)
@@ -294,6 +291,35 @@ public class PricingService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public BigDecimal calculateSimplePrice(String wagonType, String cargoType, Integer weightKg, Integer distance) {
+        log.info("Простой расчет цены: wagonType={}, cargoType={}, weight={}, distance={}",
+                wagonType, cargoType, weightKg, distance);
+
+        WagonTariff tariff = wagonTariffRepository.findByWagonTypeAndCargoType(wagonType, cargoType)
+                .orElseGet(() -> wagonTariffRepository.findByWagonTypeAndCargoType(wagonType, "общий")
+                        .orElse(null));
+
+        if (tariff == null) {
+            log.warn("Тариф не найден, возвращаем 0");
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal weightTons = new BigDecimal(weightKg)
+                .divide(new BigDecimal(1000), 2, RoundingMode.HALF_UP);
+
+        BigDecimal price = weightTons
+                .multiply(new BigDecimal(distance))
+                .multiply(tariff.getBaseRatePerKm())
+                .multiply(tariff.getCoefficient())
+                .setScale(2, RoundingMode.HALF_UP);
+
+        if (tariff.getMinPrice() != null && price.compareTo(tariff.getMinPrice()) < 0) {
+            price = tariff.getMinPrice();
+        }
+
+        return price;
+    }
 
     private String determineRiskLevel(String cargoType, Integer weightKg) {
         if (cargoType == null) return "Средний";
@@ -310,7 +336,6 @@ public class PricingService {
             return "Низкий";
         }
     }
-
 
     private int getDistanceBetweenStations(String from, String to) {
         return distanceRepository.findByFromStationAndToStation(from, to)

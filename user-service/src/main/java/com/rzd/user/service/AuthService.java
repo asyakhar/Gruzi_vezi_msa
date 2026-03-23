@@ -8,7 +8,7 @@ import com.rzd.user.model.entity.User;
 import com.rzd.user.model.enums.Role;
 import com.rzd.user.repository.UserRepository;
 import com.rzd.common.security.JwtService;
-import com.rzd.dispatcher.security.RefreshTokenService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

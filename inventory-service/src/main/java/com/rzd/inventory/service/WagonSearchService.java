@@ -1,9 +1,10 @@
 package com.rzd.inventory.service;
 
 import com.rzd.common.enums.OrderStatus;
+import com.rzd.inventory.client.OrderServiceClient;
+import com.rzd.inventory.client.PricingServiceClient;
 import com.rzd.inventory.model.dto.request.WagonSearchRequest;
 import com.rzd.inventory.model.dto.response.WagonAvailabilityResponse;
-
 import com.rzd.inventory.model.entity.StationDistance;
 import com.rzd.inventory.model.entity.Wagon;
 import com.rzd.inventory.model.entity.WagonSchedule;
@@ -33,19 +34,19 @@ public class WagonSearchService {
 
     private final WagonRepository wagonRepository;
     private final WagonScheduleRepository scheduleRepository;
-    private final WagonTariffRepository tariffRepository;
-    private final OrderService orderService;
     private final StationDistanceRepository distanceRepository;
     private final RedisTemplate<String, String> redisTemplate;
 
-    private static final String WAGON_RESERVATION_KEY = "wagon:reserved:";
+    // Вместо прямых зависимостей используем Feign Clients
+    private final PricingServiceClient pricingServiceClient;
+    private final OrderServiceClient orderServiceClient;
 
+    private static final String WAGON_RESERVATION_KEY = "wagon:reserved:";
 
     @Transactional(readOnly = true)
     public List<WagonAvailabilityResponse> findAvailableWagons(WagonSearchRequest request) {
         log.info("Поиск вагонов: станция={}, вес={}кг, тип={}",
                 request.getDepartureStation(), request.getWeightKg(), request.getPreferredWagonType());
-
 
         List<Wagon> wagonsOnStation = wagonRepository.findAvailableWagons(
                 request.getDepartureStation(),
@@ -61,11 +62,8 @@ public class WagonSearchService {
 
         List<WagonAvailabilityResponse> result = new ArrayList<>();
 
-
-
         for (Wagon wagon : wagonsOnStation) {
             log.info("Проверка вагона: {}", wagon.getWagonNumber());
-
 
             if (request.getPreferredWagonType() != null) {
                 log.info("  Тип вагона: {}, ищем: {}",
@@ -76,12 +74,10 @@ public class WagonSearchService {
                 }
             }
 
-
             if (isWagonReserved(wagon.getId())) {
                 log.info(" Вагон зарезервирован в Redis");
                 continue;
             }
-
 
             OffsetDateTime requiredDate = convertToOffsetDateTime(request.getRequiredDepartureDate());
             log.info("  Проверка доступности на дату: {}", requiredDate);
@@ -94,7 +90,6 @@ public class WagonSearchService {
                 log.info("  Вагон не доступен по датам (есть конфликты в расписании)");
             }
         }
-
 
         if (request.isAllowAlternativeStations() && result.size() < 3) {
             List<Wagon> nearbyWagons = findWagonsOnNearbyStations(request);
@@ -110,7 +105,6 @@ public class WagonSearchService {
             }
         }
 
-
         result.sort((a, b) -> b.getMatchPercentage().compareTo(a.getMatchPercentage()));
 
         log.info("Найдено {} доступных вагонов", result.size());
@@ -120,7 +114,6 @@ public class WagonSearchService {
     @Transactional
     public boolean reserveWagon(UUID wagonId, UUID orderId, int minutes) {
         log.info("Резервирование вагона {} для заказа {} на {} минут", wagonId, orderId, minutes);
-
 
         String redisKey = WAGON_RESERVATION_KEY + wagonId;
         Boolean isReserved = redisTemplate.opsForValue()
@@ -132,7 +125,6 @@ public class WagonSearchService {
         }
 
         try {
-
             Wagon wagon = wagonRepository.findById(wagonId)
                     .orElseThrow(() -> new RuntimeException("Вагон не найден"));
 
@@ -142,10 +134,8 @@ public class WagonSearchService {
                 return false;
             }
 
-
             wagon.setStatus(WagonStatus.забронирован);
             wagonRepository.save(wagon);
-
 
             WagonSchedule schedule = new WagonSchedule();
             schedule.setWagon(wagon);
@@ -154,7 +144,10 @@ public class WagonSearchService {
             schedule.setDepartureStation("ожидает");
             schedule.setArrivalStation("ожидает");
             scheduleRepository.save(schedule);
-            orderService.updateOrderStatus(orderId, OrderStatus.поиск_вагона);
+
+            // Вызываем order-service через Feign Client
+            orderServiceClient.updateOrderStatus(orderId, OrderStatus.поиск_вагона);
+
             log.info("Вагон {} успешно зарезервирован для заказа {}", wagonId, orderId);
             return true;
 
@@ -169,17 +162,14 @@ public class WagonSearchService {
     public void releaseWagon(UUID wagonId) {
         log.info("Освобождение вагона {}", wagonId);
 
-
         String redisKey = WAGON_RESERVATION_KEY + wagonId;
         redisTemplate.delete(redisKey);
-
 
         Wagon wagon = wagonRepository.findById(wagonId)
                 .orElseThrow(() -> new RuntimeException("Вагон не найден"));
 
         wagon.setStatus(WagonStatus.свободен);
         wagonRepository.save(wagon);
-
 
         List<WagonSchedule> schedules = scheduleRepository.findByWagonId(wagonId);
         for (WagonSchedule schedule : schedules) {
@@ -198,7 +188,6 @@ public class WagonSearchService {
         Boolean hasKey = redisTemplate.hasKey(redisKey);
         return Boolean.TRUE.equals(hasKey);
     }
-
 
     private OffsetDateTime convertToOffsetDateTime(LocalDateTime localDateTime) {
         if (localDateTime == null) return null;
@@ -323,28 +312,21 @@ public class WagonSearchService {
         int distance = getDistanceBetweenStations(
                 request.getDepartureStation(), request.getArrivalStation());
 
-        Optional<WagonTariff> tariff = tariffRepository.findByWagonTypeAndCargoType(
-                wagon.getWagonType().name(),
-                request.getCargoType() != null ? request.getCargoType() : "общий"
-        );
-
-        if (tariff.isEmpty()) return BigDecimal.ZERO;
-
-        BigDecimal weightTons = new BigDecimal(request.getWeightKg())
-                .divide(new BigDecimal(1000), 2, RoundingMode.HALF_UP);
-
-        BigDecimal price = weightTons
-                .multiply(new BigDecimal(distance))
-                .multiply(tariff.get().getBaseRatePerKm())
-                .multiply(tariff.get().getCoefficient())
-                .setScale(2, RoundingMode.HALF_UP);
-
-        if (tariff.get().getMinPrice() != null &&
-                price.compareTo(tariff.get().getMinPrice()) < 0) {
-            price = tariff.get().getMinPrice();
+        // Вызываем pricing-service через Feign Client
+        try {
+            return pricingServiceClient.calculatePrice(
+                    wagon.getWagonType().name(),
+                    request.getCargoType() != null ? request.getCargoType() : "общий",
+                    request.getWeightKg(),
+                    distance
+            );
+        } catch (Exception e) {
+            log.error("Ошибка при расчете цены через pricing-service: {}", e.getMessage());
+            // Возвращаем приблизительную цену, если сервис недоступен
+            BigDecimal weightTons = new BigDecimal(request.getWeightKg())
+                    .divide(new BigDecimal(1000), 2, RoundingMode.HALF_UP);
+            return weightTons.multiply(new BigDecimal(distance)).multiply(new BigDecimal("10"));
         }
-
-        return price;
     }
 
     private int getDistanceBetweenStations(String from, String to) {

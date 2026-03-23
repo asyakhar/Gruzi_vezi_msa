@@ -1,9 +1,10 @@
 package com.rzd.order.service;
 
+import com.rzd.common.enums.CargoType;
+import com.rzd.common.enums.PackagingType;
+import com.rzd.common.enums.WagonType;
 import com.rzd.order.model.dto.request.CreateOrderRequest;
-import com.rzd.dispatcher.model.enums.CargoType;
-import com.rzd.dispatcher.model.enums.PackagingType;
-import com.rzd.dispatcher.model.enums.WagonType;
+
 import org.springframework.stereotype.Service;
 
 @Service

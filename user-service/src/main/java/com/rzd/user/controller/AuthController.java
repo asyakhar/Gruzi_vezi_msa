@@ -1,7 +1,8 @@
 package com.rzd.user.controller;
 
 import com.rzd.user.model.dto.request.LoginRequest;
-import com.rzd.dispatcher.model.dto.request.LogoutRequest;
+
+import com.rzd.user.model.dto.request.LogoutRequest;
 import com.rzd.user.model.dto.request.RefreshTokenRequest;
 import com.rzd.user.model.dto.request.RegisterRequest;
 import com.rzd.user.model.dto.response.AuthResponse;

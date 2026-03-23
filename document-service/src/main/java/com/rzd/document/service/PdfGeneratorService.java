@@ -15,7 +15,7 @@ import java.time.LocalDate;
 public class PdfGeneratorService {
     private static final String FONT_PATH = "src/main/resources/a3arialrusnormal.ttf";
 
-    // Теперь принимает PaymentDTO вместо Payment
+
     public byte[] generateInvoicePdf(PaymentDTO payment) throws DocumentException, IOException {
         Document document = new Document(PageSize.A4, 30, 30, 30, 30);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -29,7 +29,7 @@ public class PdfGeneratorService {
         Font fontNormal = new Font(bf, 9, Font.NORMAL);
         Font fontSmall = new Font(bf, 7, Font.NORMAL);
 
-        // Используем данные из DTO
+
         PdfPTable headerTable = new PdfPTable(2);
         headerTable.setWidthPercentage(100);
         headerTable.setWidths(new float[]{1, 4});
@@ -132,7 +132,7 @@ public class PdfGeneratorService {
         return out.toByteArray();
     }
 
-    // Теперь принимает OrderDTO вместо Order
+
     public byte[] generateContractPdf(OrderDTO order) throws DocumentException, IOException {
         Document document = new Document(PageSize.A4, 60, 40, 50, 50);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -160,7 +160,7 @@ public class PdfGeneratorService {
         document.add(datePlace);
         document.add(new Paragraph("\n"));
 
-        // Используем данные из DTO
+
         addText(document, String.format(
                 "Открытое акционерное общество «Российские железные дороги» (ОАО «РЖД»), именуемое в дальнейшем «Перевозчик», " +
                         "в лице начальника службы движения Харитоновой А.А., действующей на основании Доверенности №РЖД-124/д, с одной стороны, и " +

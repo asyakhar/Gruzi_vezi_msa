@@ -1,7 +1,10 @@
 package com.rzd.inventory.controller;
 
+import com.rzd.common.dto.WagonDTO;
 import com.rzd.inventory.model.dto.request.WagonSearchRequest;
 import com.rzd.inventory.model.dto.response.WagonAvailabilityResponse;
+import com.rzd.inventory.model.entity.Wagon;
+import com.rzd.inventory.repository.WagonRepository;
 import com.rzd.inventory.service.WagonSearchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,8 @@ import java.util.UUID;
 public class WagonController {
 
     private final WagonSearchService wagonSearchService;
+    private final WagonRepository wagonRepository;
+
 
     @PostMapping("/search")
     public ResponseEntity<List<WagonAvailabilityResponse>> searchWagons(
@@ -47,5 +52,21 @@ public class WagonController {
         wagonSearchService.releaseWagon(wagonId);
         return ResponseEntity.ok("Вагон освобожден");
     }
+    @GetMapping("/{wagonId}/dto")
+    public ResponseEntity<WagonDTO> getWagonDTO(@PathVariable UUID wagonId) {
+        Wagon wagon = wagonRepository.findById(wagonId)
+                .orElseThrow(() -> new RuntimeException("Вагон не найден"));
 
+        WagonDTO dto = WagonDTO.builder()
+                .id(wagon.getId())
+                .wagonNumber(wagon.getWagonNumber())
+                .wagonType(wagon.getWagonType().name())
+                .maxWeightKg(wagon.getMaxWeightKg())
+                .maxVolumeM3(wagon.getMaxVolumeM3())
+                .currentStation(wagon.getCurrentStation())
+                .status(wagon.getStatus().name())
+                .build();
+
+        return ResponseEntity.ok(dto);
+    }
 }

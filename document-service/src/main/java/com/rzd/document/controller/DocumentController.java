@@ -23,7 +23,7 @@ public class DocumentController {
 
     @GetMapping("/contract/{orderId}")
     public ResponseEntity<byte[]> generateContract(@PathVariable UUID orderId) throws IOException {
-        // Получаем OrderDTO из Order Service через Feign Client
+
         OrderDTO order = orderServiceClient.getOrderDTO(orderId);
 
         byte[] pdfContent = pdfGeneratorService.generateContractPdf(order);
@@ -36,7 +36,7 @@ public class DocumentController {
 
     @GetMapping("/invoice/{paymentId}")
     public ResponseEntity<byte[]> generateInvoice(@PathVariable UUID paymentId) throws IOException {
-        // Получаем PaymentDTO из Payment Service через Feign Client
+
         PaymentDTO payment = paymentServiceClient.getPaymentDTO(paymentId);
 
         byte[] pdfContent = pdfGeneratorService.generateInvoicePdf(payment);

@@ -1,0 +1,17 @@
+-- База данных для user-service
+CREATE DATABASE user_db;
+
+-- База данных для order-service
+CREATE DATABASE order_db;
+
+-- База данных для inventory-service
+CREATE DATABASE inventory_db;
+
+-- База данных для pricing-service
+CREATE DATABASE pricing_db;
+
+-- База данных для payment-service
+CREATE DATABASE payment_db;
+
+-- База данных для document-service
+CREATE DATABASE document_db;

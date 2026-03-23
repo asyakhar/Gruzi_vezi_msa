@@ -19,10 +19,7 @@ public class OrderResponse {
     private String companyName;
     private String departureStation;
     private String destinationStation;
-
-
     private WagonType requestedWagonType;
-
     private UUID wagonId;
     private String wagonNumber;
     private OrderStatus status;
@@ -51,8 +48,8 @@ public class OrderResponse {
     public static OrderResponse fromOrder(Order order) {
         OrderResponseBuilder builder = OrderResponse.builder()
                 .id(order.getId())
-                .userId(order.getUser().getId())
-                .companyName(order.getUser().getCompanyName())
+                .userId(order.getUserId())
+                .companyName(order.getCompanyName())
                 .departureStation(order.getDepartureStation())
                 .destinationStation(order.getDestinationStation())
                 .requestedWagonType(order.getRequestedWagonType())
@@ -61,13 +58,12 @@ public class OrderResponse {
                 .carbonFootprintKg(order.getCarbonFootprintKg())
                 .createdAt(order.getCreatedAt());
 
-        if (order.getWagon() != null) {
-            builder.wagonId(order.getWagon().getId())
-                    .wagonNumber(order.getWagon().getWagonNumber());
+        if (order.getWagonId() != null) {
+            builder.wagonId(order.getWagonId())
+                    .wagonNumber(order.getWagonNumber());
         }
 
         if (order.getCargo() != null) {
-
             builder.cargo(CargoDto.builder()
                     .cargoType(order.getCargo().getCargoType())
                     .weightKg(order.getCargo().getWeightKg())

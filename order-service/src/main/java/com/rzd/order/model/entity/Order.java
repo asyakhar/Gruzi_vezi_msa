@@ -1,7 +1,7 @@
 package com.rzd.order.model.entity;
 
-import com.rzd.dispatcher.model.enums.OrderStatus;
-import com.rzd.dispatcher.model.enums.WagonType;
+import com.rzd.common.enums.OrderStatus;
+import com.rzd.common.enums.WagonType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -26,9 +26,18 @@ public class Order {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    // Вместо @ManyToOne к User - храним ID и кэшируем данные для отображения
+    @Column(name = "user_id")
+    private UUID userId;
+
+    @Column(name = "user_email", nullable = false)
+    private String userEmail;
+
+    @Column(name = "company_name")
+    private String companyName;
+
+    @Column(name = "user_inn")
+    private String userInn;
 
     @Column(name = "departure_station", nullable = false, length = 255)
     private String departureStation;
@@ -40,9 +49,12 @@ public class Order {
     @Column(name = "requested_wagon_type", nullable = false)
     private WagonType requestedWagonType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "wagon_id")
-    private Wagon wagon;
+    // Вместо @ManyToOne к Wagon - храним ID и кэшируем номер для отображения
+    @Column(name = "wagon_id")
+    private UUID wagonId;
+
+    @Column(name = "wagon_number")
+    private String wagonNumber;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -57,9 +69,11 @@ public class Order {
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
+    // Cargo остается, так как это entity в order-service
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Cargo cargo;
 
+    // OrderExtra остается, так как это entity в order-service
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<OrderExtra> services = new ArrayList<>();
 
@@ -67,7 +81,6 @@ public class Order {
     protected void onCreate() {
         createdAt = OffsetDateTime.now();
     }
-
 
     public void addService(OrderExtra service) {
         services.add(service);

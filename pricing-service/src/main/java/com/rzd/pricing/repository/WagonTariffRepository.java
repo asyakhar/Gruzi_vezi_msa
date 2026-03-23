@@ -9,6 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface WagonTariffRepository extends JpaRepository<WagonTariff, UUID> {
-
     Optional<WagonTariff> findByWagonTypeAndCargoType(String wagonType, String cargoType);
 }
