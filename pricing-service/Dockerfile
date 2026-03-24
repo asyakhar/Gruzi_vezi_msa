@@ -1,12 +1,8 @@
 FROM eclipse-temurin:17-jdk
 
-
 WORKDIR /app
 
 COPY build/libs/*.jar app.jar
-
-
-COPY src/main/resources/ /app/resources/
 
 RUN groupadd --system rzd && useradd --system -g rzd rzd
 
