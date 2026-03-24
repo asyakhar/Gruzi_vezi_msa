@@ -8,6 +8,8 @@ services:
     ports:
       - "8761:8761"
     environment:
+      - SERVER_PORT=8761
+      - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_INSTANCE_HOSTNAME=eureka-server
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
@@ -52,7 +54,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5450:5432"
     volumes:
       - postgres-user-data:/var/lib/postgresql/data
       - ./init-scripts/user-db:/docker-entrypoint-initdb.d
@@ -67,7 +69,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5433:5432"
+      - "5451:5432"
     volumes:
       - postgres-order-data:/var/lib/postgresql/data
       - ./init-scripts/order-db:/docker-entrypoint-initdb.d
@@ -82,7 +84,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5434:5432"
+      - "5452:5432"
     volumes:
       - postgres-inventory-data:/var/lib/postgresql/data
       - ./init-scripts/inventory-db:/docker-entrypoint-initdb.d
@@ -97,7 +99,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5435:5432"
+      - "5453:5432"
     volumes:
       - postgres-pricing-data:/var/lib/postgresql/data
       - ./init-scripts/pricing-db:/docker-entrypoint-initdb.d
@@ -112,7 +114,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5436:5432"
+      - "5454:5432"
     volumes:
       - postgres-payment-data:/var/lib/postgresql/data
       - ./init-scripts/payment-db:/docker-entrypoint-initdb.d
@@ -127,7 +129,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5437:5432"
+      - "5455:5432"
     volumes:
       - postgres-document-data:/var/lib/postgresql/data
       - ./init-scripts/document-db:/docker-entrypoint-initdb.d
