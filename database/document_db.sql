@@ -1,5 +1,4 @@
--- Создание базы данных
-CREATE DATABASE document_db;
+
 
 -- Подключение к базе
 \c document_db;

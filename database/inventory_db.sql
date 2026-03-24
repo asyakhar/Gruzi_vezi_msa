@@ -1,5 +1,3 @@
--- Создание базы данных
-CREATE DATABASE inventory_db;
 
 -- Подключение к базе
 \c inventory_db;

@@ -1,5 +1,3 @@
--- Создание базы данных
-CREATE DATABASE order_db;
 
 -- Подключение к базе
 \c order_db;
@@ -47,23 +45,6 @@ CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_wagon_id ON orders(wagon_id);
 CREATE INDEX idx_cargo_order_id ON cargo(order_id);
 
--- Вставка данных из монолита (преобразуем структуру)
-INSERT INTO orders (id, user_id, user_email, company_name, departure_station, destination_station, requested_wagon_type, wagon_id, status, total_price, carbon_footprint_kg, created_at)
-SELECT
-    o.id,
-    o.user_id,
-    u.email,
-    u.company_name,
-    o.departure_station,
-    o.destination_station,
-    o.requested_wagon_type,
-    o.wagon_id,
-    o.status,
-    o.total_price,
-    o.carbon_footprint_kg,
-    o.created_at
-FROM public.orders o
-         JOIN public.users u ON o.user_id = u.id;
 
 -- Вставка грузов
 INSERT INTO cargo (id, order_id, cargo_type, weight_kg, volume_m3, packaging_type)

@@ -1,5 +1,3 @@
--- Создание базы данных
-CREATE DATABASE user_db;
 
 -- Подключение к базе
 \c user_db;

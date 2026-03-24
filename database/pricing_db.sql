@@ -1,5 +1,3 @@
--- Создание базы данных
-CREATE DATABASE pricing_db;
 
 -- Подключение к базе
 \c pricing_db;

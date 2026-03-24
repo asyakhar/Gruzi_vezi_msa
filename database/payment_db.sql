@@ -1,5 +1,3 @@
--- Создание базы данных
-CREATE DATABASE payment_db;
 
 -- Подключение к базе
 \c payment_db;
