@@ -1,5 +1,6 @@
 package com.rzd.pricing.model.entity;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.GenericGenerator;
 

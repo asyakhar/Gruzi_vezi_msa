@@ -49,6 +49,7 @@ subprojects {
 }
 
 // Common модуль (общая библиотека)
+
 project(':common') {
     dependencies {
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
@@ -58,6 +59,15 @@ project(':common') {
         runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
         implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
         implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
+
+
+        implementation 'org.springframework.boot:spring-boot-starter-security'
+        implementation 'org.springframework.security:spring-security-core'
+        implementation 'org.springframework.security:spring-security-web'
+        implementation 'org.springframework.security:spring-security-config'
+
+        // Для работы с Jakarta Servlet (HttpServletRequest, HttpServletResponse)
+        compileOnly 'jakarta.servlet:jakarta.servlet-api:6.0.0'
     }
 
     bootJar {
@@ -84,14 +94,14 @@ microservices.each { service ->
             implementation 'org.postgresql:postgresql'
             implementation 'org.springframework.kafka:spring-kafka'
 
+            // ДОБАВЬТЕ ЭТИ ЗАВИСИМОСТИ ДЛЯ ВСЕХ СЕРВИСОВ
+            implementation 'org.springframework.boot:spring-boot-starter-validation'
+            implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+            implementation 'org.springframework.boot:spring-boot-starter-security'
+
             // Для PDF в document-service
             if (service == 'document-service') {
                 implementation 'com.github.librepdf:openpdf:1.3.30'
-            }
-
-            // Для Security в user-service
-            if (service == 'user-service') {
-                implementation 'org.springframework.boot:spring-boot-starter-security'
             }
         }
 
