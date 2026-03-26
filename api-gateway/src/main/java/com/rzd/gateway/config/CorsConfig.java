@@ -15,12 +15,17 @@ public class CorsConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        corsConfig.setAllowedOrigins(List.of("http://localhost:5173"));
+
+        corsConfig.setAllowedOrigins(Arrays.asList(
+                "http://localhost:5173",  // Vite dev server
+                "http://localhost:3000",  // React default
+                "http://127.0.0.1:5173"
+        ));
         corsConfig.setMaxAge(3600L);
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         corsConfig.setAllowedHeaders(List.of("*"));
         corsConfig.setAllowCredentials(true);
-        corsConfig.setExposedHeaders(List.of("Authorization", "X-User-Email"));
+        corsConfig.setExposedHeaders(Arrays.asList("Authorization", "X-User-Email"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfig);
