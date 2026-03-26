@@ -1,7 +1,14 @@
 spring:
+  application:
+    name: pricing-service
   datasource:
     url: jdbc:postgresql://localhost:5435/pricing_db
     username: postgres
     password: postgres
 server:
   port: 8084
+
+eureka:
+  client:
+     serviceUrl:
+       defaultZone: http://eureka-server:8761/eureka/

@@ -1,12 +1,12 @@
 spring:
   application:
-    name: payment-service
+    name: order-service
   datasource:
-    url: jdbc:postgresql://localhost:5436/payment_db
+    url: jdbc:postgresql://postgres-order:5432/order_db
     username: postgres
     password: postgres
 server:
-  port: 8085
+  port: 8082
 eureka:
   client:
     serviceUrl:

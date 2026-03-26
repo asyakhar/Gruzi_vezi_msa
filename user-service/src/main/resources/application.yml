@@ -1,7 +1,20 @@
 spring:
+  application:
+    name: user-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/user_db
+    url: jdbc:postgresql://postgres-user:5432/user_db
     username: postgres
     password: postgres
+  data:
+    redis:
+      host: redis
+      password: ${REDIS_PASSWORD:redispass}
 server:
   port: 8081
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://eureka-server:8761/eureka/
+jwt:
+  secret: "VGhpc0lzQVZlcnlTZWNcmV0S2V5Rm9ySldUR2VuZXJhdGlvblVzaW5nU3ByaW5nQm9vdA=="

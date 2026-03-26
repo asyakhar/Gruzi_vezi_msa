@@ -1,12 +1,12 @@
 spring:
   application:
-    name: payment-service
+    name: document-service
   datasource:
-    url: jdbc:postgresql://localhost:5436/payment_db
+    url: jdbc:postgresql://localhost:5437/document_db
     username: postgres
     password: postgres
 server:
-  port: 8085
+  port: 8086
 eureka:
   client:
     serviceUrl:

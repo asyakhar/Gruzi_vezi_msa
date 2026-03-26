@@ -14,7 +14,7 @@ spring:
         - id: user-service
           uri: lb://user-service
           predicates:
-            - Path=/api/auth/**, /api/users/**
+            - Path=/api/auth/**, /api/user/**
           filters:
             - name: CircuitBreaker
               args:
@@ -57,10 +57,17 @@ spring:
           filters:
             - StripPrefix=0
 
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    timeout: 2000ms
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: ${REDIS_PASSWORD:redispass}
+
+# ДОБАВЛЕННЫЙ JWT (Секретный ключ)
+# ВАЖНО: скопируйте сюда точное значение secret из вашего user-service!
+jwt:
+  secret: "VGhpc0lzQVZlcnlTZWNcmV0S2V5Rm9ySldUR2VuZXJhdGlvblVzaW5nU3ByaW5nQm9vdA=="
+  expiration: 900000
 
 server:
   port: 8080
@@ -68,7 +75,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
     fetch-registry: true
     register-with-eureka: true
   instance:

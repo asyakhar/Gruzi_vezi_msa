@@ -1,7 +1,0 @@
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5433/order_db
-    username: postgres
-    password: postgres
-server:
-  port: 8082

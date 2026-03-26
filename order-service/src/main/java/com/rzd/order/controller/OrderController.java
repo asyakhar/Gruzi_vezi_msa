@@ -9,7 +9,6 @@ import com.rzd.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -30,10 +29,8 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<?> createOrder(
             @Valid @RequestBody CreateOrderRequest request,
-            Authentication authentication
+            @RequestHeader("X-User-Email") String userEmail // Читаем email от Gateway
     ) {
-        String userEmail = authentication.getName();
-
         UUID orderId = orderService.createDraftOrder(request, userEmail);
         return ResponseEntity.ok(Map.of(
                 "orderId", orderId,
@@ -44,13 +41,11 @@ public class OrderController {
     @GetMapping("/{orderId}")
     public ResponseEntity<OrderResponse> getOrderById(
             @PathVariable UUID orderId,
-            Authentication authentication
+            @RequestHeader("X-User-Email") String userEmail
     ) {
-        String userEmail = authentication.getName();
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Заказ не найден с ID: " + orderId));
 
-        // Проверка доступа по email
         if (!order.getUserEmail().equals(userEmail)) {
             throw new RuntimeException("У вас нет доступа к этому заказу");
         }
@@ -58,20 +53,17 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<List<OrderResponse>> getMyOrders(Authentication authentication) {
-        String email = authentication.getName();
-        List<Order> userOrders = orderRepository.findByUserEmail(email);
+    public ResponseEntity<List<OrderResponse>> getMyOrders(@RequestHeader("X-User-Email") String userEmail) {
+        List<Order> userOrders = orderRepository.findByUserEmail(userEmail);
         List<OrderResponse> responseList = userOrders.stream()
                 .map(OrderResponse::fromOrder)
                 .collect(Collectors.toList());
-
         return ResponseEntity.ok(responseList);
     }
 
     @GetMapping("/{orderId}/contract")
     public ResponseEntity<byte[]> downloadContract(@PathVariable UUID orderId) {
         byte[] pdfContent = orderService.generateOrderContract(orderId);
-
         return ResponseEntity.ok()
                 .header("Content-Type", "application/pdf")
                 .header("Content-Disposition", "attachment; filename=\"contract_" + orderId + ".pdf\"")
@@ -83,9 +75,8 @@ public class OrderController {
             @PathVariable UUID orderId,
             @RequestParam UUID wagonId,
             @RequestParam BigDecimal totalPrice,
-            Authentication authentication
+            @RequestHeader("X-User-Email") String userEmail
     ) {
-        String userEmail = authentication.getName();
         Order updatedOrder = orderService.confirmWagonSelection(orderId, wagonId, totalPrice, userEmail);
         return ResponseEntity.ok(OrderResponse.fromOrder(updatedOrder));
     }
